@@ -1,0 +1,81 @@
+services:
+
+  mongo:
+    image: mongo:7.0.1    
+    container_name: auth-mongo
+    ports:
+      - "27017:27017"
+    # - "27018:28017"
+    # Host → localhost:27018
+    # Container → mongo:27017
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: kafka_u1
+      MONGO_INITDB_ROOT_PASSWORD: test123
+    
+    # command: >
+    #   bash -c "
+    #     chmod 400 /etc/mongo-keyfile &&
+    #     mongod --replSet rs0 --bind_ip_all --keyFile /etc/mongo-keyfile
+    #   "
+    # command: ["--replSet", "rs0", "--bind_ip_all"]
+    command: ["--bind_ip_all"]
+    volumes:
+      - mongo-data:/data/db
+      # - ./mongo-keyfile:/etc/mongo-keyfile
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js
+
+  redis:
+    image: redis:7
+    container_name: auth-redis
+    ports:
+      - "6379:6379"
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: auth-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: auth-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://auth-kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    healthcheck:
+      test: ["CMD", "bash", "-c", "nc -z localhost 9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  mailhog:
+    image: mailhog/mailhog
+    container_name: auth-mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  auth-service:
+    build: ..
+    container_name: auth-service
+    ports:
+      - "4000:4000"
+    depends_on:
+      - mongo
+      - redis
+      - kafka
+    env_file:
+      - ../.env
+
+volumes:
+  mongo-data:

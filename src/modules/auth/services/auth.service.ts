@@ -65,7 +65,7 @@ export class AuthService {
   }
 
   async deleteUser(id: string) {
-    return this.repo.delete(id);
+    return this.repo.deleteById(id);
   }
 
 }

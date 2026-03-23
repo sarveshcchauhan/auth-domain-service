@@ -1,6 +1,5 @@
 import { Kafka } from "kafkajs";
 import { ENV } from "../../config/env";
-import { startEmailWorker } from "../../workers/email.worker";
 
 
 const wait = (ms: number) => new Promise(res => setTimeout(res, ms));

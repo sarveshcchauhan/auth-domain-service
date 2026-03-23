@@ -4,8 +4,8 @@ export class User {
     readonly last_name: string,
     readonly email: string,
     readonly password: string,
+    readonly role: string | "user",
     readonly id: string,
-    readonly role?: string,
   ) {}
 
   static fromDocument(doc: any): User {

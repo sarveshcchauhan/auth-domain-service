@@ -7,6 +7,10 @@
     "build": "tsc",
     "dev": "nodemon src/server.ts",
     "start": "node dist/server.js",
+    "worker:email": "node dist/workers/email.worker.js",
+    "worker:retry": "node dist/workers/retry.worker.js",
+    "worker:retry2": "node dist/workers/retry2.worker.js",
+    "worker:dlq": "node dist/workers/dlq.worker.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

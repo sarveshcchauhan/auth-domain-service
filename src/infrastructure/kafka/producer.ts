@@ -43,8 +43,4 @@ export const publishEvent = async (topic: string, payload: any) => {
       },
     ],
   });
-
-  await startEmailWorker()
-        .then(() => console.log("Email worker started"))
-        .catch((err) => console.error("Email worker failed", err));
 };

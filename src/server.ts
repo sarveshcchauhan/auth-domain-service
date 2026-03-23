@@ -4,16 +4,20 @@ import { connectRedis } from "./infrastructure/cache/redis.client";
 import { connectProducer } from "./infrastructure/kafka/producer";
 
 const startServer = async () => {
+  try {
+    await connectMongo();
 
-  await connectMongo();
+    await connectRedis();
+    
+    await connectProducer();
 
-  await connectRedis();
-  
-  await connectProducer();
-
-  app.listen(4000, () => {
-    console.log("Auth Service running on port 4000");
-  });
+    app.listen(4000, () => {
+      console.log("Auth Service running on port 4000");
+    });
+  } catch(err) {
+    console.error("Startup Failed: ", err);
+    process.exit(1);
+  }
 
 };
 

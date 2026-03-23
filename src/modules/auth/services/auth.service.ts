@@ -5,6 +5,7 @@ import { bloomFilter } from "../../../infrastructure/bloom/bloom.filter";
 import { redisClient } from "../../../infrastructure/cache/redis.client";
 import { publishEvent } from "../../../infrastructure/kafka/producer";
 import { generateToken } from "../../../utils/jwt";
+import { TOPICS } from "../../../infrastructure/kafka/topics";
 
 // Distributed bloom filter Bloom Filter is shared across all service instances via Redis
 // const bloomFilter = new DistributedBloomFilter();
@@ -29,7 +30,7 @@ export class AuthService {
     await redisClient.set(email, "1");
 
     // publish registration event
-    await publishEvent("user-events", { type: "USER_REGISTERED", email, userId: user.id });
+    await publishEvent(TOPICS.USER_EVENTS, { type: "USER_REGISTERED", email, userId: user.id });
 
     return user;
   }

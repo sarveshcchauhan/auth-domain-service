@@ -40,6 +40,12 @@ export class AuthController {
 
       res.json({ token });
 
+      // res.cookie("refreshToken", token, {
+      //   httpOnly: true,
+      //   secure: true,
+      //   sameSite: "strict",
+      // });
+
     } catch (err: any) {
 
       res.status(401).json({

@@ -14,9 +14,16 @@ export class UserRepository implements IUserRepository{
   }
 
   async create(data: User): Promise<User> {
-    const doc = await UserModel.create(data);
-
-    return User.fromDocument(doc);
+    try{
+      const doc = await UserModel.create(data);
+      
+      return User.fromDocument(doc);
+    }catch(err: any){
+      if (err?.code === 11000) {
+        throw new Error("Email already exists");
+      }
+      throw err;
+    }
   }
 
   async deleteById(id: string): Promise<User | null> {

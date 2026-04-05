@@ -19,15 +19,26 @@ export class AuthService {
 
   async register(data: any) {
     const { email, password } = data;
-
+    
+    // Step 1: Bloom filter check
     if (bloomFilter.has(email)) {
+      // Step 2: Redis check
       const cached = await redisClient.get(email);
       if (cached) throw new Error("Email exists");
+
+      // Step 3: DB fallback (MANDATORY)
+      const exists = await this.repo.findByEmail(email);
+      if (exists) {
+        await redisClient.set(email, "1");
+        throw new Error("Email exists");
+      }
     }
 
     const hashed = await hashPassword(password);
+    // Step 4: Create user
     const user = await this.repo.create({ ...data, password: hashed });
 
+    // Step 5: Update all layers
     bloomFilter.add(email);
     await redisClient.set(email, "1");
 

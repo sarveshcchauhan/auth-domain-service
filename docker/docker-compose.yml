@@ -30,6 +30,14 @@ services:
     ports:
       - "6379:6379"
 
+  redis-insight:
+    image: redis/redisinsight:latest
+    container_name: redis-insight
+    ports:
+      - "5540:5540"
+    depends_on:
+      - redis
+
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
     container_name: auth-zookeeper
@@ -51,6 +59,8 @@ services:
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://auth-kafka:9092
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     healthcheck:
       test: ["CMD", "bash", "-c", "nc -z localhost 9092"]
@@ -58,6 +68,17 @@ services:
       timeout: 5s
       retries: 10
 
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: auth-kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: auth-zookeeper:2181
+    depends_on:
+      - kafka
   mailhog:
     image: mailhog/mailhog
     container_name: auth-mailhog
@@ -80,36 +101,54 @@ services:
     env_file:
       - ../.env
     restart: unless-stopped
-
-  email-worker:
-    build:
-      context: ..
-      dockerfile: Dockerfile
-    command: npm run worker:email
+  
+  otel-collector:
+    image: otel/opentelemetry-collector:latest
+    container_name: otel-collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "4318:4318"   # HTTP (your SDK uses this)
     depends_on:
-      - kafka
-      - auth-service
-    restart: unless-stopped
+      - jaeger
 
-  retry-worker:
-    build:
-      context: ..
-      dockerfile: Dockerfile
-    command: npm run worker:retry
-    depends_on:
-      - kafka
-      - auth-service
-    restart: unless-stopped
+  jaeger:
+    image: jaegertracing/all-in-one:1.54
+    container_name: jaeger
+    ports:
+      - "16686:16686" # UI
+      - "4317:4317"
 
-  dlq-worker:
-    build:
-      context: ..
-      dockerfile: Dockerfile
-    command: npm run worker:dlq
-    depends_on:
-      - kafka
-      - auth-service
-    restart: unless-stopped
+  # email-worker:
+  #   build:
+  #     context: ..
+  #     dockerfile: Dockerfile
+  #   command: npm run worker:email
+  #   depends_on:
+  #     - kafka
+  #     - auth-service
+  #   restart: unless-stopped
+
+  # retry-worker:
+  #   build:
+  #     context: ..
+  #     dockerfile: Dockerfile
+  #   command: npm run worker:retry
+  #   depends_on:
+  #     - kafka
+  #     - auth-service
+  #   restart: unless-stopped
+
+  # dlq-worker:
+  #   build:
+  #     context: ..
+  #     dockerfile: Dockerfile
+  #   command: npm run worker:dlq
+  #   depends_on:
+  #     - kafka
+  #     - auth-service
+  #   restart: unless-stopped
       
 volumes:
   mongo-data:

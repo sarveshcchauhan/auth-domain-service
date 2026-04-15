@@ -3,9 +3,11 @@ import { hashPassword, comparePassword } from "../../../utils/hash";
 import { bloomFilter } from "../../../infrastructure/bloom/bloom.filter";
 // import { DistributedBloomFilter } from "../../../infrastructure/bloom/distributedBloom";
 import { redisClient } from "../../../infrastructure/cache/redis.client";
+import { TOPICS } from "../../../infrastructure/kafka/topics";
 import { publishEvent } from "../../../infrastructure/kafka/producer";
 import { generateToken, verifyToken } from "../../../utils/jwt";
-import { TOPICS } from "../../../infrastructure/kafka/topics";
+import { createContext } from "../../../infrastructure/observability/context";
+import { USER_REGISTERED } from "../../../utils/constant";
 
 // Distributed bloom filter Bloom Filter is shared across all service instances via Redis
 // const bloomFilter = new DistributedBloomFilter();
@@ -37,13 +39,14 @@ export class AuthService {
     const hashed = await hashPassword(password);
     // Step 4: Create user
     const user = await this.repo.create({ ...data, password: hashed });
+    const ctx = createContext(user.id);
 
     // Step 5: Update all layers
     bloomFilter.add(email);
     await redisClient.set(email, "1");
 
     // publish registration event
-    await publishEvent(TOPICS.USER_EVENTS, { type: "USER_REGISTERED", email, userId: user.id });
+    await publishEvent(TOPICS.USER_EVENTS, USER_REGISTERED, { email, userId: user.id }, ctx );
 
     return user;
   }

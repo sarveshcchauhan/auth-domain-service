@@ -4,10 +4,12 @@ import { bloomFilter } from "../../../infrastructure/bloom/bloom.filter";
 // import { DistributedBloomFilter } from "../../../infrastructure/bloom/distributedBloom";
 import { redisClient } from "../../../infrastructure/cache/redis.client";
 import { TOPICS } from "../../../infrastructure/kafka/topics";
-import { publishEvent } from "../../../infrastructure/kafka/producer";
 import { generateToken, verifyToken } from "../../../utils/jwt";
 import { createContext } from "../../../infrastructure/observability/context";
 import { USER_REGISTERED } from "../../../utils/constant";
+import { OutboxRepositoryImpl } from "../../../infrastructure/repositories/OutboxRepositoryImpl";
+import { PublishEventUseCase } from "../../../application/usecases/PublishEvent.usecase";
+import { createEvent } from "../../../application/events/createEvent.factory";
 
 // Distributed bloom filter Bloom Filter is shared across all service instances via Redis
 // const bloomFilter = new DistributedBloomFilter();
@@ -15,13 +17,15 @@ import { USER_REGISTERED } from "../../../utils/constant";
 // JWT verify = trust the token
 // Hash compare = trust the session
 
-export class AuthService {
+const outboxRepo = new OutboxRepositoryImpl();
+const publishEventUseCase = new PublishEventUseCase(outboxRepo);
 
+export class AuthService {
   constructor(private repo = new UserRepository()) {}
 
   async register(data: any) {
     const { email, password } = data;
-    
+
     // Step 1: Bloom filter check
     if (bloomFilter.has(email)) {
       // Step 2: Redis check
@@ -45,8 +49,19 @@ export class AuthService {
     bloomFilter.add(email);
     await redisClient.set(email, "1");
 
-    // publish registration event
-    await publishEvent(TOPICS.USER_EVENTS, USER_REGISTERED, { email, userId: user.id }, ctx );
+    // Step 6: Create event on kafka
+    const event = createEvent(
+      USER_REGISTERED,
+      TOPICS.USER_EVENTS,
+      {
+        email,
+        userId: user.id,
+      },
+      ctx,
+    );
+
+    // Step 7: Store in Outbox (NOT Kafka)
+    await publishEventUseCase.execute(event);
 
     return user;
   }
@@ -63,8 +78,8 @@ export class AuthService {
     const refreshToken = generateToken(user.id + "_refresh", "refresh");
 
     // hash token for session trust
-    const hash = await hashPassword(refreshToken)
-    
+    const hash = await hashPassword(refreshToken);
+
     // store refresh token in Redis
     await redisClient.set(`refresh:${user.id}`, hash, { EX: 7 * 24 * 3600 });
 
@@ -74,16 +89,15 @@ export class AuthService {
   async refreshToken(userId: string, token: string) {
     //1. Verify JWT Refresh Token
     const payload = verifyToken(token, "refresh");
-    if(!payload) throw new Error("Invalid refresh token");
+    if (!payload) throw new Error("Invalid refresh token");
 
     //2. Fetch from Redis
     const stored = await redisClient.get(`refresh:${userId}`);
     if (!stored || stored !== token) throw new Error("Session expired");
-  
+
     // 3. Compare hashed token
     const isValid = await comparePassword(token, stored);
     if (!isValid) throw new Error("Token mismatch");
-
 
     // 4. Generate new tokens
     const accessToken = generateToken(userId, "jwt");

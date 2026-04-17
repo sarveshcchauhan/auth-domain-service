@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { AuthController } from "../controllers/auth.controller";
 import { authMiddleware } from "../../../middleware/auth.middleware";
 import { loginRateLimiter } from "../../../middleware/rateLimiter.middleware";
+import { AuthController } from "../../../http/controllers/auth.controller";
 
 const router = Router();
 const controller = new AuthController();

@@ -1,7 +1,7 @@
 //Repository only handles database operations.
 import { IUserRepository } from "../interface/user.repository.interface";
 import { User } from "../interface/user.types";
-import { UserModel } from "../models/user.model";
+import { UserModel } from "../../../infrastructure/database/models/user.model";
 
 export class UserRepository implements IUserRepository{
 

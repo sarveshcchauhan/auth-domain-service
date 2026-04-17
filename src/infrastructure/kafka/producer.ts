@@ -1,15 +1,12 @@
-import { Kafka } from "kafkajs";
-import { ENV } from "../../config/env";
+import { wait } from "../../utils/delay";
+import { logger } from "../observability/logger";
+import { producer } from ".";
+import { v4 as uuid } from "uuid";
+import { trace } from "@opentelemetry/api";
+import { EventEnvelope } from "../../domain/events/event.types";
+import { createEvent } from "../../application/events/createEvent.factory";
 
-
-const wait = (ms: number) => new Promise(res => setTimeout(res, ms));
-
-const kafka = new Kafka({
-  clientId: "data-service",
-  brokers: [ENV.KAFKA_BROKER || "auth-kafka:9092"],
-});
-
-export const producer = kafka.producer();
+const tracer = trace.getTracer("kafka-producer");
 
 export const connectProducer = async () => {
   let retries = 10;
@@ -33,13 +30,48 @@ export const connectProducer = async () => {
  * Publish events to Kafka
  */
 
-export const publishEvent = async (topic: string, payload: any) => {
-  await producer.send({
-    topic,
-    messages: [
-      {
-        value: JSON.stringify(payload),
-      },
-    ],
-  });
-};
+// export const publishEvent = async <T>(
+//   eventType: string,
+//   topic: string,
+//   payload: T,
+//   ctx: {
+//     traceId: string;
+//     correlationId: string;
+//     userId?: string;
+//   },
+// ) => {
+
+//   const span = tracer.startSpan("publishEvent");
+//   const event: EventEnvelope<T> = createEvent(
+//     eventType,
+//     topic,
+//     payload,
+//     ctx,
+//   );
+
+//   span.setAttribute("eventType", eventType);
+//   span.setAttribute("userId", event.userId || event.eventId);
+
+//   await producer.send({
+//     topic,
+//     messages: [
+//       {
+//         key: ctx.userId || event.eventId, 
+//         value: JSON.stringify(event),
+//         headers: {
+//           ...ctx,
+//         },
+//       },
+//     ],
+//   });
+
+//   span.addEvent("Kafka message sent");
+//   span.end()
+//   logger.info({
+//     eventId: event.eventId,
+//     userId: ctx.userId,
+//     traceId: ctx.traceId,
+//     topic,
+//     msg: "Event published",
+//   });
+// };

@@ -13,7 +13,7 @@ export const logger = pino({
     targets: [
       {
         target: "pino/file",
-        options: { destination: "./logs/app.log" }, // ✅ file logging
+        options: { destination: "./logs/app.log" }, // file logging
       },
     ],
   },
